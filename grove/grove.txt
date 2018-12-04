@@ -1,2 +1,3 @@
 https://github.com/Seeed-Studio/Seeed_PM2_5_sensor_HM3301
 https://github.com/Seeed-Studio/Seeed_PM2_5_sensor_HM3301/archive/master.zip
+http://wiki.seeedstudio.com/Grove-Laser_PM2.5_Sensor-HM3301/

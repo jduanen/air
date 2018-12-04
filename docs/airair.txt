@@ -1,0 +1,222 @@
+Air.Air!
+========
+
+Device Name: AIR.AIR!
+Service UUID: 0000ffe0-0000-1000-8000-00805f9b34fb
+Characteristic UUID: 0000ffe1-0000-1000-8000-00805f9b34fb
+
+* Protocol 1:
+  - used to read a sample, along with the temperature and calibration constant
+  - Read 16 Bytes
+    *  BYTE0,           Header, 0xFF, Constant
+    *  BYTE1, Protocol Version, 0x01, V1
+    *  BYTE2, Hardware Version, 0x01, V1
+    *  BYTE3,        Info Type, 0xA1, get data from Air.Air!
+    *  BYTE4,            Data0, 0x**, Density V_h, high byte of V_out
+    *  BYTE5,            Data1, 0x**, Density V_l, low byte of V_out
+    *  BYTE6,            Data2, 0x**, Temperature, Degrees Celsius, -0x20
+    *  BYTE7,            Data3, 0x0[0-5], Battery Voltage, 0=5%, 1=20%, 2=40%, 3=60%, 4=80%, 5=100%
+    *  BYTE8,            Data4, 0x44, V_oc,    (BYTE8 / 255), calibration constant
+    *  BYTE9,            Data5, 0x3D, K Value, (BYTE9 / 255), calibration constant
+    * BYTE10,            Data6, 0x**, Sampling Interval, used when plotting values
+    * BYTE11,            Data7, 0x00, Constant
+    * BYTE12,            Data8, 0x00, Constant
+    * BYTE13,            Data9, 0x00, Constant
+    * BYTE14,           Data10, 0x00, Constant
+    * BYTE15,         Checksum, 0x**, Checksum, 0xFF & (BYTE0 + ... + BYTE14)
+  - V_out = 3.3*((BYTE4 << 5) | BYTE5)/1024
+  - V_oc = Output Voltage when no dust detected
+  - Dust Concentration: ((V_out - V_oc) * 100) / K
+  - K Value and V_oc are calibration constants and should not be changed
+  - Example: [FF, 01, 01, A1, 03, <0D-14>, 35, 05, 44, 3D, 01, 00, 00, 00, <var>]
+
+* Protocol 2:
+  - used to set the number of samples and sampling interval
+  - Write 16 Bytes
+    *  BYTE0,           Header, 0xFF, Constant
+    *  BYTE1, Protocol Version, 0x01, V1
+    *  BYTE2, Hardware Version, 0x01, V1
+    *  BYTE3,        Info Type, 0xB1, configure streaming data from the device
+    *  BYTE4,            Data0, 0x**, Sampling Interval
+    *  BYTE5,            Data1, 0x**, Number of Samples
+    *  BYTE6,            Data2, 0x00, Constant
+    *  BYTE7,            Data3, 0x00, Constant
+    *  BYTE8,            Data4, 0x00, Constant
+    *  BYTE9,            Data5, 0x00, Constant
+    * BYTE10,            Data6, 0x00, Constant
+    * BYTE11,            Data7, 0x00, Constant
+    * BYTE12,            Data8, 0x00, Constant
+    * BYTE13,            Data9, 0x00, Constant
+    * BYTE14,           Data10, 0x00, Constant
+    * BYTE15,         Checksum, 0x**, Checksum, 0xFF & (BYTE0 + ... + BYTE14)
+  - Sampling Interval: (BYTE4 * 10) mins, 2550-10 mins
+  - Number of Points: BYTE5, [0-64], max of 64 samples to be returned
+
+* Protocol 3:
+  - used to trigger packets of samples from device using Protocol 4
+  - Write 16 Bytes
+    *  BYTE0,           Header, 0xFF, Constant
+    *  BYTE1, Protocol Version, 0x01, V1
+    *  BYTE2, Hardware Version, 0x01, V1
+    *  BYTE3,        Info Type, 0xB2, request block of samples
+    *  BYTE4,            Data0, 0x00, Constant
+    *  BYTE5,            Data1, 0x00, Constant
+    *  BYTE6,            Data2, 0x00, Constant
+    *  BYTE7,            Data3, 0x00, Constant
+    *  BYTE8,            Data4, 0x00, Constant
+    *  BYTE9,            Data5, 0x00, Constant
+    * BYTE10,            Data6, 0x00, Constant
+    * BYTE11,            Data7, 0x00, Constant
+    * BYTE12,            Data8, 0x00, Constant
+    * BYTE13,            Data9, 0x00, Constant
+    * BYTE14,           Data10, 0x0[0-2], Ending Flag, 0: same, 1: last, 2: first
+    * BYTE15,         Checksum, 0x**, Checksum, 0xFF & (BYTE0 + ... + BYTE14)
+  - BYTE4 - BYTE11: four samples -- if high order byte == 0x7F, then drop it
+  - BYTE14: data mark bit, 0x0[0-2]
+    * 0x00: samples are part of the current group, middle packet
+    * 0x01: samples are the last set of the group, last packet
+    * 0x02: samples are the first set of the group, first packet
+
+* Protocol 4:
+  - return packet of samples in response to write using Protocol 3
+  - Read 16 Bytes
+    *  BYTE0,           Header, 0xFF, Constant
+    *  BYTE1, Protocol Version, 0x01, V1
+    *  BYTE2, Hardware Version, 0x01, V1
+    *  BYTE3,        Info Type, 0xA2, streaming data from the device
+    *  BYTE4,            Data0, 0x**, sample0 High
+    *  BYTE5,            Data1, 0x**, sample0 Low
+    *  BYTE6,            Data2, 0x**, sample1 High
+    *  BYTE7,            Data3, 0x**, sample1 Low
+    *  BYTE8,            Data4, 0x**, sample2 High
+    *  BYTE9,            Data5, 0x**, sample2 Low
+    * BYTE10,            Data6, 0x**, sample3 High
+    * BYTE11,            Data7, 0x**, sample3 Low
+    * BYTE12,            Data8, 0x00, Constant
+    * BYTE13,            Data9, 0x00, Constant
+    * BYTE14,           Data10, 0x0[0-2], Ending Flag, 0: same, 1: last, 2: first
+    * BYTE15,         Checksum, 0x**, Checksum, 0xFF & (BYTE0 + ... + BYTE14)
+  - BYTE4 - BYTE11: four samples -- if high order byte == 0x7F, then drop it
+  - BYTE14: data mark bit, 0x0[0-2]
+    * 0x00: samples are part of the current group, middle packet
+    * 0x01: samples are the last set of the group, last packet
+    * 0x02: samples are the first set of the group, first packet
+
+===================================================================================================
+Hi it is factory mode if the LED start flash quickly.  It can be used to test.
+When the LED flashes slowly, it means the airair is connected with Phone.  It can work.
+If long term disconnection, the airair will force to disconnect phone for power saveing.
+Then you should push the button again to start airair. Thank you.
+
+Range: 0-500 uG/m^3
+
+To test PM2.5 or 10, we need a additional filter screen that can filtrate particle
+(diameter less than 2.5um for PM2.5; 10um for PM10) in the air.
+However, the filter screen is too expensive for general public.
+To make this product much cheaper, we did not choose it.
+It can detect hybrid or mixed particles in the air, like mixture of dust and smoke.
+This is a kind of tradeoff to meet the requirement for non-professional application.
+
+===================================================================================================
+Sharp GP2Y1010AU0F Dust Sensor
+
+* Needs a screen to filter larger particles to sense PM 2.5/10
+
+* Output Voltage of Sensor (V_out) is sum of Output Voltage with No Dust (V_oc) and output proportional to dust Density (dV)
+  - dust density voltage: dV = V_out - V_oc;
+  - output/monitor voltage: V_out = V_oc + dV
+* Output Voltage with No Dust (V_oc) is caused by stray light in the sensor
+  - V_oc is non-zero even with 0mg/m^3 of dust density
+  - the less dust in the sensor, the smaller V_oc becomes
+* store V_oc in application memory (calibration constant).
+  - calculate dV from monitor value (V_out)
+  - if monitor value (V_out) is less than memorized V_oc, then the V_oc should be updated with the value of V_o
+* if monitor value (V_out) is larger than memorized V_oc for a certain period of time,
+  - this monitor value V_out should be stored as the new V_oc
+* don't clean the device, don't disassemble the device
+* VR sensitivity adjust is done at factory and so don't change it
+* vibration affects the function of the device
+* sensor won't work if moisture/dew inside
+* EMF will add noise to sensor readings
+
+* example curve of dust density (mg/m^3) versus Output Voltage (V_out)
+  - 0.1: 1.48V
+  - 0.2: 2.0V
+  - 0.3: 2.75V
+  - 0.4: 3.25V
+  - 0.5: 3.6V
+  - 0.6: 3.65V
+  - 0.7: 3.65V
+  - 0.8: 3.65V
+
+* Sensitivity (K)
+  - amount of output voltage change when dust density changes by 0.1mg^3
+  - min = 0.35V/(0.1mg/m^3)
+  - typ = 0.50V/(0.1mg/m^3)
+  - max = 0.65V/(0.1mg/m^3)
+
+* Output Voltage with No Dust (V_oc)
+  - min = 0.0V
+  - typ = 0.9V
+  - max = 1.5V
+
+*
+
+
+===================================================================================================
+
+
+=========================================================================================================
+
+Service UUID:        0000ffe0-0000-1000-8000-00805f9b34fb
+Characteristic UUID: 0000ffe1-0000-1000-8000-00805f9b34fb
+
+* Read from device
+
+[FF, 01, 01, A1, 03, <0D-14>, 35, 05, 44, 3D, 01, 00, 00, 00, <var>]
+
+ DATA0, Header, 0xFF, Constant
+ DATA1, Protocol Version, 0x01, V1
+ DATA2, Hardware Version, 0x01, V1
+ DATA3, Info Type, 0xA1, data from Air.Air!
+ DATA4, Data0, Density V_h, high byte of V_out
+ DATA5, Data1, Density V_l, low byte of V_out
+ DATA6, Data2, Temperature, Degrees Celsius, -0x20
+ DATA7, Data3, Battery Voltage, [0-5], 0=5%, 1=20%, 2=40%, 3=60%, 4=80%, 5=100%
+ DATA8, Data4, V_oc, 0x44, (BYTE8 / 255), calibration constant
+ DATA9, Data5, K Value, 0x3D, (BYTE9 / 255), calibration constant
+DATA10, Data6, Sampling Interval, used when plotting values
+DATA11, Data7, 0x00, Constant
+DATA12, Data8, 0x00, Constant
+DATA13, Data9, 0x00, Constant
+DATA14, Data10, 0x00, Constant
+DATA15, Checksum, 0xFF & (BYTE0 + ... + BYTE14)
+
+V_out = 3.3*((BYTE4 << 5) | BYTE5)/1024
+
+V_oc = Output Voltage when no dust detected
+
+Dust Concentration: ((V_out - V_oc) * 100) / K
+
+
+* Streaming Data (sent from device)
+
+ DATA0, Header, 0xFF, Constant
+ DATA1, Protocol Version, 0x01, V1
+ DATA2, Hardware Version, 0x01, V1
+ DATA3, Info Type, 0xB1, streaming data from Air.Air!
+ DATA4, Data0, Sampling Interval
+ DATA5, Data1, Number of Samples
+ DATA6, Data2, 0x00, Constant
+ DATA7, Data3, 0x00, Constant
+ DATA8, Data4, 0x00, Constant
+ DATA9, Data5, 0x00, Constant
+DATA10, Data6, 0x00, Constant
+DATA11, Data7, 0x00, Constant
+DATA12, Data8, 0x00, Constant
+DATA13, Data9, 0x00, Constant
+DATA14, Data10, 0x00, Constant
+DATA15, Checksum, 0xFF & (BYTE0 + ... + BYTE14)
+
+
+
